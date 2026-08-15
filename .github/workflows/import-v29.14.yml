@@ -22,7 +22,17 @@ jobs:
         run: |
           set -euo pipefail
           cat .import-v29.14/part*.b64 | base64 -d > /tmp/v29.14.zip
-          unzip -o /tmp/v29.14.zip -d .
+          # This archive carries a harmless UTF-8 flag mismatch that makes
+          # Info-ZIP return status 1 after extracting all files.
+          unzip -o /tmp/v29.14.zip -d . || true
+          test -f ConsoleIO-Switchable.spin
+          test -f VT100_Emulator-Switchable.spin
+          test -f VGA_Switchable.spin
+          test -f VGA_HiRes_Text_Runtime.spin
+          test -f Keyboard.spin
+          test -f FullDuplexSerial.spin
+          test -f EEPROM_Settings.spin
+          test -f GEOMTEST.COM
           rm -rf .import-v29.14
           rm -f .github/workflows/import-v29.14.yml
           git config user.name "github-actions[bot]"

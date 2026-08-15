@@ -1,0 +1,16 @@
+Console I/O firmware v29.7a
+==========================
+
+Compile-fix release for v29.7.
+
+Fixed VGA_HiRes_Text_Runtime.spin:
+- Restored the PASM label `scanret` at the return point used by the generated
+  per-scanline display routine.
+- Updated the runtime horizontal-sync timing patch to patch `scanret`.
+
+The v29.7 refactor had renamed this label to `hs_visible` while the generated
+instruction template `i4` still correctly jumped to `#scanret`, causing Spin
+Tools IDE to report "symbol scanret not found".
+
+No functional geometry, DEC Special Graphics, scan-code, color, or EEPROM
+behavior was intentionally changed in this compile-fix release.

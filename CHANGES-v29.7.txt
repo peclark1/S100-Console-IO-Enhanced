@@ -1,0 +1,24 @@
+Console I/O V29.7 - 2026-08-14
+
+Based on the known-good V29.5 DEC Special Graphics + scan-code baseline and
+V29.6 full-screen work.
+
+V29.7 changes:
+- Replaces the three separate fixed-resolution VGA PASM/font objects with one
+  runtime-patched VGA_HiRes_Text_Runtime object. This makes VGA timing and
+  native 8x12 character geometry part of the same mode selection and avoids
+  carrying three copies of the PASM/font in hub RAM.
+- VGA wrapper geometry state is stored in longs.
+- VT100 geometry is derived directly from active mode (0=80x40, 1=100x50,
+  2=128x64) and stored in longs.
+- ANSI ESC[row;colH clamps row and column independently to the active geometry.
+- Retains persistent resolution/colors, DEC Special Graphics, raw PS/2 scan
+  code display, and all prior Console I/O behavior.
+- Includes GEOMTEST.COM/ASM (silent edge-marker test).
+
+Suggested first test:
+1. Compile ConsoleIO-Switchable.spin and load to RAM.
+2. Select Ctrl+Alt+F3.
+3. Run GEOMTEST.COM.
+4. In 128x64 mode R must be top-right; L/B bottom-left; Q/Z bottom-right;
+   cursor should be near screen center.

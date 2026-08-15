@@ -1,0 +1,17 @@
+S-100 Console I/O firmware V29.6 - 2026-08-14
+
+Baseline: ConsoleIO_Switchable_Resolutions_Colors_Persistent_DECGraphics_ScanCode_v29.5
+
+Retained:
+- Ctrl+Alt+F1/F2/F3 resolution switching
+- Native full-screen geometries: 80x40, 100x50, 128x64
+- Persistent resolution and foreground/background colors
+- Raw PS/2 Set-2 scan code on left HEX pair
+- Translated host character on right HEX pair
+- VT100 DEC Special Graphics via ESC ( 0 / ESC ( B
+
+V29.6 correction:
+- DECSTBM / ANSI scroll-region bounds now use termRows instead of termCols.
+  The parameters to ESC [ top ; bottom r are line numbers, not columns.
+
+Top object: ConsoleIO-Switchable.spin

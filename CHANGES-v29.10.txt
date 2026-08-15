@@ -1,0 +1,22 @@
+Console I/O V29.10 - 2026-08-14
+
+Based on the V29.9c font-selection/setup branch and the
+V29.7b full-screen runtime VGA renderer.
+
+Changed:
+- Renamed the terminal-style alternate font to "DEC VT220".
+- Replaced the generated terminal-style printable ASCII glyphs with an 8x12
+  adaptation guided by htayj/DEC-Fonts VT220 BDF data.
+- Renamed the PC alternate font to "IBM PC VGA".
+- Replaced the generated PC-style printable ASCII glyphs with an 8x12
+  adaptation of susam/pcface oldschool-vga-8x16 bitmap data.
+- Default font is untouched.
+- Characters $00-$1F in both alternate fonts remain byte-for-byte copies of
+  the Default font so DEC Special Graphics / WarGames line drawing is stable.
+- Updated font provenance/license notes.
+
+Unchanged:
+- 8x12 character cells.
+- 640x480 = 80x40, 800x600 = 100x50, 1024x768 = 128x64.
+- Ctrl+Alt+F8 setup UI, live font preview, EEPROM font/color/resolution save.
+- DEC Special Graphics and raw PS/2 scan-code HEX display.

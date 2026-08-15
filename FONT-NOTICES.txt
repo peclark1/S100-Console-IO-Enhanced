@@ -1,0 +1,41 @@
+V29.10 alternate-font notices
+=============================
+
+Default
+-------
+The Default font is the original 8x12 bitmap table carried by the Parallax
+VGA_HiRes_Text driver in this project. V29.10 does not alter it.
+
+DEC VT220
+---------
+The V29.10 "DEC VT220" printable ASCII raster is an 8x12 adaptation guided by
+htayj/DEC-Fonts, specifically its generated
+DIGITAL-VT220-Normal-80col-10x20-75xres BDF. The BDF represents the historical
+VT220 glyph cell at double vertical resolution; V29.10 collapses that geometry
+back to the source-style rows and pads it to the Console I/O driver's fixed
+8x12 cell. Control glyphs $00-$1F are copied from the Default Console I/O font
+so the board's DEC Special Graphics implementation remains unchanged.
+
+DEC-Fonts states that Taylor Hardy's original code, formatting, mapping, and
+other copyrightable contributions are MIT licensed. Its historical VT220 glyph
+data comes from a ROM-representation image published by VT100.net; the project
+explicitly notes that its MIT grant does not purport to relicense that
+pre-existing historical DEC material. See htayj/DEC-Fonts LICENSE and
+THIRD_PARTY_NOTICES.md for the full provenance and license scope. DEC, DIGITAL,
+and VT220 are used here only for identification; this firmware is not endorsed
+by or affiliated with DEC or its successors.
+
+IBM PC VGA
+----------
+The V29.10 "IBM PC VGA" printable ASCII raster is adapted from the
+oldschool-vga-8x16 bitmap map distributed by susam/pcface. That map is based on
+VileR's Oldschool PC font reproductions of IBM PC OEM fonts. PC Face documents
+the Oldschool PC font material as Creative Commons Attribution-ShareAlike 4.0
+(CC BY-SA 4.0). The 8x16 source rows are resampled to the Console I/O driver's
+fixed 8x12 cell. Control glyphs $00-$1F remain copied from the Default font so
+DEC Special Graphics remains stable across font selections.
+
+The adapted IBM PC VGA bitmap data in this firmware should therefore be
+redistributed with the applicable attribution and ShareAlike terms preserved.
+IBM and IBM PC are used only for identification; this project is not affiliated
+with or endorsed by IBM.

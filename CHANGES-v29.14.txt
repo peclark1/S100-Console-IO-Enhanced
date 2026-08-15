@@ -1,0 +1,17 @@
+Console I/O V29.14 - Display-test border scroll fix
+=================================================
+
+Based on V29.13.
+
+Fix:
+- The display/geometry test previously printed the bottom-right border corner
+  through the normal VT100 character-output path.  Because that cell is the
+  final character position on the terminal, simplec() advanced past the end
+  of the active scroll region and correctly invoked a one-line terminal scroll.
+- Added a small testPutAt() helper in VT100_Emulator-Switchable.spin that writes
+  a character directly to display memory without moving the terminal cursor.
+- The test screen now uses testPutAt() only for the bottom-right '+' corner.
+
+No normal terminal scrolling/wrapping behavior was changed.  Fonts, VGA timing,
+geometry, colors, EEPROM settings, keyboard scan-code display, and DEC Special
+Graphics are unchanged from V29.13.

@@ -1,0 +1,18 @@
+Console I/O V29.12
+==================
+
+Setup-screen usability update based on V29.11.
+
+- No VGA timing, geometry, renderer, font bitmap, EEPROM, or terminal-emulation
+  behavior was changed.
+- Native geometries remain exactly:
+    640x480   = 80 columns x 40 lines
+    800x600   = 100 columns x 50 lines
+    1024x768  = 128 columns x 64 lines
+  These correspond exactly to the fixed 8x12 character cell.
+- Added setup guidance:
+    "Choose an option below by pressing the corresponding key:"
+- Expanded the T option so the available fonts are visible on-screen:
+    Default / DEC VT220 / IBM PC VGA
+- Font selection remains a live preview and T continues to cycle through the
+  three choices.

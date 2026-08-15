@@ -1,0 +1,32 @@
+Console I/O V29.13 - Display / Geometry Test
+=============================================
+
+Based on the working V29.12 configuration UI and V29.11 font/display code.
+
+New setup option:
+  D      Display / geometry test
+
+The temporary test screen is generated from the currently previewed mode and
+therefore automatically uses the active terminal matrix:
+  640 x 480   =  80 x 40 characters
+  800 x 600   = 100 x 50 characters
+  1024 x 768  = 128 x 64 characters
+
+Display-test features:
+  - Border at the exact outer character-cell edges.
+  - Horizontal column ruler and vertical row ruler.
+  - TL/TR/BL/BR near-corner markers for clipping/overscan checks.
+  - Horizontal/vertical center crosshair and CENTER marker.
+  - Current VGA mode, terminal geometry, 8 x 12 cell size, font, and colors.
+  - Uppercase, lowercase, numeric, punctuation, and spacing/font samples.
+  - Normal/inverse sample using the currently selected colors.
+  - Eight text-mode color calibration bands (white, green, amber, cyan,
+    yellow, red, magenta, blue).
+  - Any key returns to setup.
+
+The test is temporary. It does not save EEPROM settings or change the selected
+configuration. Per-row color changes used by the calibration bars are restored
+to the previewed foreground/background colors before returning to setup.
+
+No font bitmap, VGA timing, resolution geometry, EEPROM format, keyboard scan
+code display, or DEC Special Graphics mapping was intentionally changed.

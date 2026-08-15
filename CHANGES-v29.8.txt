@@ -1,0 +1,36 @@
+Console I/O V29.8 - 2026-08-14
+
+Based on the hardware-tested V29.7b full-screen branch.
+
+New local setup/status UI:
+  Ctrl+Alt+F8 opens S-100 CONSOLE I/O SETUP.
+
+The setup screen shows:
+  * current VGA resolution
+  * native terminal geometry for that mode
+  * current foreground color
+  * current background color
+
+Controls:
+  1  640x480 / 80x40
+  2  800x600 / 100x50
+  3  1024x768 / 128x64
+  F  next foreground color
+  B  next background color
+  W  swap foreground/background
+  R  reset white on black
+  S  save selected configuration and exit
+  X or ESC  cancel and restore settings active on entry
+
+Changes are previewed immediately. S writes the existing mode/color EEPROM
+settings record. X/ESC restores the exact mode and colors present when setup
+was entered; it does not modify EEPROM.
+
+No font changes are included in V29.8. Font selection is intentionally the
+next separate enhancement after this setup UI is validated on hardware.
+
+Notes:
+  * Entering setup is local to the Propeller and the setup keystrokes are not
+    passed to the S-100 host.
+  * The terminal screen is cleared when setup is entered/exited. The host's
+    previous screen contents cannot be reconstructed by this firmware.

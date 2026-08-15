@@ -1,0 +1,14 @@
+Console I/O V29.11 - IBM PC VGA glyph preservation fix
+=========================================================
+
+* Fixes missing horizontal/edge pixels in the IBM PC VGA font.
+* Root cause: V29.10 reduced the PCFace 8x16 source glyphs to 8x12 with
+  nearest-neighbor row selection. Several one-scanline strokes were skipped
+  entirely (for example the top/middle strokes of B and portions of digits).
+* V29.11 does not resample ordinary glyphs. It crops/shifts the occupied
+  source scanlines into the 12-row terminal cell, preserving every original
+  scanline for glyphs that fit. Rare taller glyphs merge rows with OR so no
+  lit source pixel is discarded.
+* Default and DEC VT220 font data are unchanged from V29.10.
+* No VGA timing, geometry, color, scan-code, keyboard, VT100, or EEPROM
+  behavior was intentionally changed.

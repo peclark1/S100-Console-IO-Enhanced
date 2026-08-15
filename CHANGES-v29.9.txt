@@ -1,0 +1,27 @@
+Console I/O V29.9b - 2026-08-14
+
+Based on the hardware-proven V29.8 setup UI and V29.7b full-screen renderer.
+
+New:
+- Three selectable 8x12 fonts:
+    Default       - original Parallax/Console I/O font, unchanged.
+    VT100-style   - terminal-inspired monospaced alternate font.
+    IBM PC-style  - heavier PC-text-inspired alternate font.
+- Ctrl+Alt+F8 setup now displays the active font.
+- Press T in setup to cycle fonts with immediate on-screen preview.
+- Font selection is saved with resolution and colors.
+- EEPROM settings format advances from v1 to v2.
+- Existing V29.8/v1 EEPROM records remain readable and select Default font.
+- DEC Special Graphics control glyphs $00-$1F are identical in all fonts,
+  preserving WarGames line drawing regardless of selected normal font.
+
+Unchanged:
+- Character cells remain 8x12.
+- Geometry remains 80x40 / 100x50 / 128x64.
+- Ctrl+Alt+F1..F8 behavior other than the new T option is retained.
+- Raw PS/2 scan-code HEX display and DEC Special Graphics support retained.
+
+Font notes:
+The alternate fonts are style-oriented 8x12 rasterizations designed for this
+driver; they are labeled VT100-style and IBM PC-style rather than claiming
+bit-for-bit reproduction of original DEC or IBM ROM glyphs.

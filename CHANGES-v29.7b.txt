@@ -1,0 +1,15 @@
+Console I/O V29.7b
+==================
+
+Compile-fix release based on V29.7a.
+
+Fix:
+- The runtime VGA refactor inserted global PASM labels inside the original
+  four-line renderer block.  Spin local labels (such as :pixa and :pixb)
+  are scoped to the preceding global label, so those inserted labels made
+  the original local symbols unreachable from earlier instructions.
+- Renamed all local labels in that affected renderer block to unique global
+  labels (halfrow_loop, column_loop, pixa_instr, pixb_instr, cursor_loop,
+  cursor_xor_instr, nocursor_loop).  No instructions or timing were added.
+
+This is a source-level compile fix only; intended video behavior is unchanged.

@@ -1,0 +1,32 @@
+name: Import V29.14 source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.import-v29.14/**'
+      - '.github/workflows/import-v29.14.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct and import V29.14
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .import-v29.14/part*.b64 | base64 -d > /tmp/v29.14.zip
+          unzip -o /tmp/v29.14.zip -d .
+          rm -rf .import-v29.14
+          rm -f .github/workflows/import-v29.14.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import complete hardware-tested V29.14 source set"
+          git push origin HEAD:main

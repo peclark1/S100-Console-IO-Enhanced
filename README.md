@@ -4,6 +4,8 @@ Enhanced Propeller P1 firmware for John Monahan's S-100 Console I/O board.
 
 This repository preserves the original Console I/O firmware lineage while adding the display, keyboard, terminal-emulation, and configuration enhancements developed and hardware-tested on a physical S-100 Console I/O V2 board.
 
+<img width="2022" height="1554" alt="image" src="https://github.com/user-attachments/assets/a58e8008-2884-4060-a0e7-334215be3fee" />
+
 ## Current hardware-tested version
 
 **V29.14** — 2026-08-14

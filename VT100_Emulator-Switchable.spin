@@ -4,10 +4,16 @@
         V29.6: ANSI scroll-region parameters are bounded by rows, not columns.
         V29.7: Geometry is derived directly from the selected VGA mode and kept
                in longs; ANSI CUP/HVP clamps row and column independently.
+        V29.16: Host output is buffered through a second Spin cog so the S-100
+                interface can acknowledge characters while rendering continues.
 ''
 '' Based on code from Vince Briel and ajv
 
 }}
+CON
+    OUTPUT_QUEUE_SIZE = 128
+    OUTPUT_QUEUE_MASK = OUTPUT_QUEUE_SIZE - 1
+
 OBJ
     text:       "VGA_Switchable"          ' Switchable VGA Terminal Driver
 
@@ -30,6 +36,16 @@ VAR
     byte lastc  ' Last displayed character
     byte g0graphics ' DEC Special Graphics selected in G0 by ESC ( 0
 
+    ' V29.16 output FIFO.  ConsoleIO remains the sole owner of the S-100 data
+    ' pins; this object's second Spin cog only consumes bytes and updates the
+    ' terminal/VGA screen state.
+    byte outputQueue[OUTPUT_QUEUE_SIZE]
+    long outputHead
+    long outputTail
+    long outputCog
+    long outputBusy
+    long outputStack[96]
+
 PUB start(video, mode, foreground, background, font)
     ' Start with settings supplied by ConsoleIO.  These may have come from
     ' the boot EEPROM, or may be the normal 128x64 white-on-black defaults.
@@ -37,6 +53,7 @@ PUB start(video, mode, foreground, background, font)
     syncGeometry
 
 PUB setMode(mode) : okay
+    waitOutputIdle
     okay := text.setMode(mode)
     if okay
         init
@@ -45,30 +62,38 @@ PUB getMode : mode
     mode := text.getMode
 
 PUB setFont(font) : okay
+    waitOutputIdle
     okay := text.setFont(font)
 
 PUB cycleFont : font
+    waitOutputIdle
     font := text.cycleFont
 
 PUB getFont : font
     font := text.getFont
 
 PUB cycleForeground
+    waitOutputIdle
     text.cycleForeground
 
 PUB cycleBackground
+    waitOutputIdle
     text.cycleBackground
 
 PUB swapColors
+    waitOutputIdle
     text.swapColors
 
 PUB resetColors
+    waitOutputIdle
     text.resetColors
 
 PUB setColors(foreground, background)
+    waitOutputIdle
     text.setColors(foreground, background)
 
 PUB setRowColors(row, foreground, background)
+    waitOutputIdle
     text.setRowColors(row, foreground, background)
 
 PUB getForeground : value
@@ -98,6 +123,11 @@ PRI syncGeometry | mode
 '' Initialize terminal emulator code
 PUB init
 
+    ' Any queued host output must finish before terminal state or geometry is
+    ' reset.  During local setup the main ConsoleIO cog is not accepting new
+    ' host characters, so this also keeps the setup/test screens deterministic.
+    waitOutputIdle
+
     syncGeometry
     text.cls
 
@@ -109,6 +139,12 @@ PUB init
     regTop := 0
     regBot := termChars
 
+    ' Start the asynchronous output consumer once.  If no spare cog exists,
+    ' outputCog remains zero and singleSerial0() transparently falls back to
+    ' the original synchronous V29.14 behavior.
+    if outputCog == 0
+        startOutputWorker
+
 PUB prn2(val) | dig
     dig := 48 + (val // 10)
     val := val/10
@@ -117,6 +153,7 @@ PUB prn2(val) | dig
     text.putc(pos++, dig)
 
 PUB prn(val)
+    waitOutputIdle
     text.putc(pos++, " ")
     if val < 0
         text.putc(pos++, "-")
@@ -124,11 +161,13 @@ PUB prn(val)
     prn2(val)
 
 PUB putn(r, c, val)
+    waitOutputIdle
     pos := r * termCols + c
     prn(val)
 
 '' Write a string into the screen
 PUB puts(row, col, str) | x, ptr
+    waitOutputIdle
     ptr := (row * termCols) + col
     repeat x from 0 to STRSIZE(str)-1
         text.putc(ptr++, BYTE[str+x])
@@ -138,10 +177,54 @@ PUB puts(row, col, str) | x, ptr
 PUB testPutAt(row, col, c)
     ' Direct display-memory write used by the local geometry test.
     ' Does not advance the terminal cursor, wrap, or invoke scroll logic.
+    waitOutputIdle
     if (row => 1) AND (row =< termRows) AND (col => 1) AND (col =< termCols)
         text.putc(((row - 1) * termCols) + (col - 1), c)
 
-PUB singleSerial0(c)
+
+'' Queue one byte from ConsoleIO and return as soon as there is FIFO space.
+'' This is the key V29.16 change: ConsoleIO can restore its S-100 READY/BUSY
+'' state while a different cog continues VT100 parsing, character drawing, and
+'' scrolling.  A full FIFO naturally applies back-pressure to the host.
+PUB singleSerial0(c) | next
+    if outputCog == 0
+        processSerial0(c)
+        return
+
+    next := (outputHead + 1) & OUTPUT_QUEUE_MASK
+    repeat while next == outputTail
+
+    outputQueue[outputHead] := c
+    outputHead := next
+
+
+PRI startOutputWorker
+    outputHead := 0
+    outputTail := 0
+    outputBusy := 0
+    outputCog := cognew(outputWorker, @outputStack) + 1
+
+
+PRI outputWorker | c
+    repeat
+        if outputTail <> outputHead
+            ' Set BUSY before advancing tail so waitOutputIdle() cannot mistake
+            ' a byte being rendered for an empty/idle FIFO.
+            outputBusy := 1
+            c := outputQueue[outputTail]
+            outputTail := (outputTail + 1) & OUTPUT_QUEUE_MASK
+            processSerial0(c)
+            outputBusy := 0
+
+
+PRI waitOutputIdle
+    if outputCog
+        repeat while (outputHead <> outputTail) OR outputBusy
+
+
+'' Original V29.14 terminal parser/render path.  In V29.16 it normally runs
+'' in outputWorker's Spin cog instead of in the S-100 interface cog.
+PRI processSerial0(c)
     case state
 
     ' State 0: ready for new data to display or start of escape sequence

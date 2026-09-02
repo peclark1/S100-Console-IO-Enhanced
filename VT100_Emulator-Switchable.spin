@@ -186,16 +186,17 @@ PUB testPutAt(row, col, c)
 '' This is the key V29.16 change: ConsoleIO can restore its S-100 READY/BUSY
 '' state while a different cog continues VT100 parsing, character drawing, and
 '' scrolling.  A full FIFO naturally applies back-pressure to the host.
-PUB singleSerial0(c) | next
+PUB singleSerial0(c) | nextHead
     if outputCog == 0
         processSerial0(c)
         return
 
-    next := (outputHead + 1) & OUTPUT_QUEUE_MASK
-    repeat while next == outputTail
+    nextHead := (outputHead + 1) & OUTPUT_QUEUE_MASK
+    repeat while nextHead == outputTail
+        waitcnt(cnt + 100)
 
     outputQueue[outputHead] := c
-    outputHead := next
+    outputHead := nextHead
 
 
 PRI startOutputWorker
@@ -220,6 +221,7 @@ PRI outputWorker | c
 PRI waitOutputIdle
     if outputCog
         repeat while (outputHead <> outputTail) OR outputBusy
+            waitcnt(cnt + 100)
 
 
 '' Original V29.14 terminal parser/render path.  In V29.16 it normally runs

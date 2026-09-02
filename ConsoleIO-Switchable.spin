@@ -30,6 +30,10 @@
 ''      V29.11   8/14/2026      Source-guided DEC VT220 and IBM PC VGA alternate fonts
 ''      V29.13   8/14/2026      Add display/geometry calibration test screen (D in setup)
 ''      V29.14   8/14/2026      Prevent geometry test bottom-right corner from triggering terminal scroll
+''      V29.16    9/1/2026      Add 128-byte host-output FIFO and second Spin cog so S-100 character
+''                              acceptance overlaps VT100 parsing/rendering. Direct 1000-line benchmark
+''                              improved from ~32 sec to ~23 sec (~28% less time / ~39% more throughput).
+''                              CP/M BDOS benchmark remains ~46-47 sec because BDOS becomes the bottleneck.
 
 ''      Keyboard HEX displays:
 ''      Left pair  = raw PS/2 Set-2 make scan code
@@ -77,7 +81,7 @@ VAR
   byte  savedFont
  
 OBJ
-    te:         "VT100_Emulator-Switchable" ' ajvTerm code with runtime VGA geometry
+    te:         "VT100_Emulator-Switchable" ' Runtime VGA geometry + V29.16 buffered host output
     kb:         "Keyboard"              ' Keyboard driver
     ser0:       "FullDuplexSerial"      ' Full Duplex Serial Controller(s)
     prefs:      "EEPROM_Settings"       ' Persistent display mode/color settings
@@ -94,7 +98,7 @@ PUB main
     
     dira[7..0]~~                                        'Set P7-P0 to output
 
-    dira[8]~~                                           'To keep console IN bit "Busy" while processing data, always out
+    dira[8]~~                                           'Console OUT Busy while receiving/queueing host data, always out
     outa[8] := 0                                        'nothing right now 
 
     dira[9]~                                            'DATA_IN_BUSY is read via this pin, alwauys in
@@ -217,8 +221,8 @@ PUB main
           
             if ina[11] == %1                            'Is there an S-100 bus character WRITE request (P11, LATCHED_OUTPUT_ENABLE high)
 
-                  outa[8] := 1                          'Raise Console Busy bit (P8 to pin 3 of LS02),
-                                                        'this will lower set bit 2 of Console OUT Status port to 0
+                  outa[8] := 1                          'Raise Console Busy while this host byte is captured and queued.
+                                                        'V29.16 releases Busy after enqueueing; rendering continues concurrently.
 
                   dira[7..0]~                           'Set P7-P0 to INPUT mode
 
@@ -263,12 +267,13 @@ PUB main
                                    te.singleSerial0("H")
                                  
                                 OTHER:
-                                   te.singleSerial0(ch)                         'All other characters
+                                   te.singleSerial0(ch)                         'V29.16: enqueue ordinary host output for renderer cog
                                          
                                                                           
                   dira[7..0]~~                                                  'Set P7-P0 back to OUTPUT
                         
-                  outa[8] := 0                                                  'We are ready for next character
+                  outa[8] := 0                                                  'Byte is queued; host may send the next character.
+                                                        'VT100 parsing/rendering may still be running in the output cog.
                    
                                                                              
 

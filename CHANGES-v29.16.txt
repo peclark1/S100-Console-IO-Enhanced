@@ -1,17 +1,19 @@
-S100 Console I/O Enhanced Firmware V29.16 - buffered output performance test
+S100 Console I/O Enhanced Firmware V29.16 - buffered output performance release
 2026-09-01
 
 Purpose
 -------
-Second controlled performance experiment, based directly on the hardware-tested V29.14 main branch. V29.15's PASM screen-copy experiment is intentionally not included because it produced no measurable performance gain.
+Final performance update based on the hardware-tested V29.14 firmware.
+
+The performance investigation used the same CP/M SPEED.COM 1,000-line benchmark for each build, with timestamped video used to measure elapsed time. The useful improvement was decoupling S-100 character acceptance from VT100 parsing/rendering with a FIFO and a second Propeller cog.
 
 Change
 ------
-VT100_Emulator-Switchable.spin now contains a 128-byte host-output FIFO and launches one additional Spin cog to consume it.
+VT100_Emulator-Switchable.spin contains a 128-byte host-output FIFO and launches one additional Spin cog to consume it.
 
-ConsoleIO's existing S-100 interface cog remains the only owner of the shared P0-P7 data pins and the READY/BUSY handshake. Calls to singleSerial0() now enqueue the received character and return as soon as FIFO space is available. The new output cog concurrently runs the original V29.14 VT100 parser, character rendering, cursor updates, and scrolling code.
+ConsoleIO's existing S-100 interface cog remains the only owner of the shared P0-P7 data pins and the READY/BUSY handshake. Calls to singleSerial0() enqueue the received character and return as soon as FIFO space is available. The new output cog concurrently runs the original V29.14 VT100 parser, character rendering, cursor updates, and scrolling code.
 
-This changes the normal path from:
+The normal output path changes from:
 
   S-100 receive -> VT100/render/scroll -> release BUSY
 
@@ -31,17 +33,44 @@ Configuration safety
 --------------------
 Operations that directly reset or modify terminal/VGA state wait for queued output to become idle first. This keeps resolution/font/color changes and the local setup/geometry-test screens serialized with host output.
 
-Benchmark
----------
-Use the same SPEED tests and display mode as before.
+A development bug in the first V29.16 prototype used WAITCNT with an interval that was too short for the Spin interpreter. If the target count had already passed, the Propeller waited for the 32-bit CNT wrap (about 53.7 seconds). The final V29.16 uses a safe 10,000-clock wait (about 125 us at 80 MHz) in the FIFO back-pressure/idle loops.
 
-Hardware-tested V29.14 baseline from timestamp video:
+Hardware benchmark results
+--------------------------
+All values are approximate because the timestamp overlay has one-second resolution.
+
+V29.14 baseline:
   Option 1 - CP/M BDOS:          ~47 seconds / 1000 lines
   Option 2 - Direct Console I/O: ~32 seconds / 1000 lines
 
-V29.15 screen-copy experiment:
+V29.16 buffered output:
+  Option 1 - CP/M BDOS:          ~46 seconds / 1000 lines
+  Option 2 - Direct Console I/O: ~23 seconds / 1000 lines
+
+Direct-I/O improvement:
+  Elapsed time:       32 -> 23 seconds, about 28% lower
+  Throughput:         ~31.3 -> ~43.5 lines/second
+  Throughput increase: approximately 39%
+
+The BDOS benchmark did not materially improve. After buffering, CP/M/BDOS produces characters more slowly than the renderer can consume them, so that test is host/BDOS limited rather than Console I/O limited.
+
+Other performance experiments
+-----------------------------
+V29.15 - PASM screen-copy worker cog:
   Option 1: ~46 seconds
   Option 2: ~33 seconds
-  Result: no meaningful change.
+  Result: no meaningful improvement. The existing Spin longmove/longfill screen operations were not the dominant bottleneck.
 
-V29.16 is specifically testing whether overlapping S-100 character acceptance with VT100/render work improves sustained throughput.
+V29.17 - 128-column cursor mask/shift optimization:
+  Option 1: ~46 seconds
+  Option 2: ~23 seconds
+  Result: no measurable improvement over V29.16.
+
+V29.18 - combined printable-character/object-call path:
+  Option 1: ~46 seconds
+  Option 2: ~23 seconds
+  Result: no measurable improvement over V29.16.
+
+Conclusion
+----------
+V29.16 is the selected final performance version. The meaningful gain came from using an additional Propeller cog and a 128-byte FIFO to overlap S-100 character acceptance with terminal parsing/rendering. The later micro-optimizations added complexity without measurable benefit and are not part of the final release.

@@ -1,0 +1,47 @@
+S100 Console I/O Enhanced Firmware V29.16 - buffered output performance test
+2026-09-01
+
+Purpose
+-------
+Second controlled performance experiment, based directly on the hardware-tested V29.14 main branch. V29.15's PASM screen-copy experiment is intentionally not included because it produced no measurable performance gain.
+
+Change
+------
+VT100_Emulator-Switchable.spin now contains a 128-byte host-output FIFO and launches one additional Spin cog to consume it.
+
+ConsoleIO's existing S-100 interface cog remains the only owner of the shared P0-P7 data pins and the READY/BUSY handshake. Calls to singleSerial0() now enqueue the received character and return as soon as FIFO space is available. The new output cog concurrently runs the original V29.14 VT100 parser, character rendering, cursor updates, and scrolling code.
+
+This changes the normal path from:
+
+  S-100 receive -> VT100/render/scroll -> release BUSY
+
+to:
+
+  S-100 receive -> FIFO -> release BUSY
+                         |
+                         +-> output cog -> VT100/render/scroll
+
+Back-pressure and fallback
+--------------------------
+The FIFO is a power-of-two 128-byte ring buffer. If it becomes full, singleSerial0() waits until the output cog frees a slot, so the existing S-100 BUSY signal naturally throttles the host without dropping characters.
+
+If a spare Propeller cog cannot be allocated, outputCog remains zero and singleSerial0() calls the original parser synchronously, preserving V29.14 behavior.
+
+Configuration safety
+--------------------
+Operations that directly reset or modify terminal/VGA state wait for queued output to become idle first. This keeps resolution/font/color changes and the local setup/geometry-test screens serialized with host output.
+
+Benchmark
+---------
+Use the same SPEED tests and display mode as before.
+
+Hardware-tested V29.14 baseline from timestamp video:
+  Option 1 - CP/M BDOS:          ~47 seconds / 1000 lines
+  Option 2 - Direct Console I/O: ~32 seconds / 1000 lines
+
+V29.15 screen-copy experiment:
+  Option 1: ~46 seconds
+  Option 2: ~33 seconds
+  Result: no meaningful change.
+
+V29.16 is specifically testing whether overlapping S-100 character acceptance with VT100/render work improves sustained throughput.

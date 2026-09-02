@@ -2,13 +2,13 @@
 
 Enhanced Propeller P1 firmware for John Monahan's S-100 Console I/O board.
 
-This repository preserves the original Console I/O firmware lineage while adding the display, keyboard, terminal-emulation, and configuration enhancements developed and hardware-tested on a physical S-100 Console I/O V2 board.
+This repository preserves the original Console I/O firmware lineage while adding the display, keyboard, terminal-emulation, configuration, and performance enhancements developed and hardware-tested on a physical S-100 Console I/O V2 board.
 
 <img width="2022" height="1554" alt="image" src="https://github.com/user-attachments/assets/a58e8008-2884-4060-a0e7-334215be3fee" />
 
 ## Current hardware-tested version
 
-**V29.14** — 2026-08-14
+**V29.16** — 2026-09-01
 
 The top-level object to open and compile is:
 
@@ -30,6 +30,22 @@ The top-level object to open and compile is:
 - Raw PS/2 Scan Code Set 2 make-code on the left HEX-display pair while the translated character/code remains on the right pair.
 - VT100 `ESC ( 0` DEC Special Graphics line-drawing support, used by the CP/M WarGames display project.
 - Runtime geometry-aware VT100 behavior across all three display sizes.
+- **Buffered host output:** a 128-byte FIFO and an additional Propeller cog decouple S-100 character acceptance from VT100 parsing/rendering, substantially improving sustained direct-console throughput.
+
+## Performance
+
+A repeatable CP/M benchmark (`SPEED.COM`) outputs 1,000 lines using either CP/M BDOS console output or direct Console I/O hardware access. Timestamped video was used to compare builds on the same hardware.
+
+| Firmware | CP/M BDOS | Direct Console I/O |
+| --- | ---: | ---: |
+| V29.14 baseline | ~47 s | ~32 s |
+| **V29.16 buffered output** | **~46 s** | **~23 s** |
+
+For direct Console I/O, V29.16 reduces elapsed time from about **32 seconds to 23 seconds** — roughly **28% lower elapsed time** and approximately **39% higher throughput** (about 31.3 to 43.5 lines/second).
+
+The BDOS result is essentially unchanged because after buffering, the CP/M/BDOS output path is slower than the Console I/O renderer and becomes the limiting factor.
+
+Additional experiments moving the screen copy to PASM, optimizing cursor arithmetic, and combining per-character object calls produced no measurable improvement. Those changes were not retained in the final firmware. See `CHANGES-v29.16.txt` for the benchmark history and conclusions.
 
 ## Setup keys
 
@@ -69,14 +85,14 @@ For example, lowercase `a` displays `1C / 61`.
 
 ## Persistent settings
 
-Display settings are stored in a versioned record near the end of the Propeller P1 boot EEPROM. V29.14 stores video mode, foreground color, background color, and font. Older settings records remain backward compatible.
+Display settings are stored in a versioned record near the end of the Propeller P1 boot EEPROM. V29.16 stores video mode, foreground color, background color, and font. Older settings records remain backward compatible.
 
 Reprogramming the Propeller EEPROM writes the boot image again, so saved display settings may need to be re-saved after reflashing firmware.
 
 ## Source layout
 
 - `ConsoleIO-Switchable.spin` — top-level Console I/O firmware
-- `VT100_Emulator-Switchable.spin` — terminal emulation and setup/test UI
+- `VT100_Emulator-Switchable.spin` — terminal emulation, buffered host-output FIFO, and setup/test UI
 - `VGA_Switchable.spin` — screen buffer, colors, mode/font selection
 - `VGA_HiRes_Text_Runtime.spin` — runtime VGA PASM renderer and font data
 - `Keyboard.spin` — PS/2 keyboard driver with parallel raw scan-code queue
@@ -100,4 +116,4 @@ Because the inherited firmware also contains older third-party code, this reposi
 
 ## Status
 
-V29.14 has been compiled with Spin Tools IDE 0.57.2 and tested on the physical Console I/O board in all three VGA modes, including selectable fonts, persistent settings, DEC graphics, and the display/geometry test.
+V29.16 has been compiled with Spin Tools IDE 0.57.2 and hardware-tested on the physical Console I/O board, including all three VGA modes, selectable fonts, persistent settings, DEC graphics, the display/geometry test, normal CP/M console operation, and the buffered-output performance path.

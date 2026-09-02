@@ -193,7 +193,9 @@ PUB singleSerial0(c) | nextHead
 
     nextHead := (outputHead + 1) & OUTPUT_QUEUE_MASK
     repeat while nextHead == outputTail
-        waitcnt(cnt + 100)
+        ' 125 us at 80 MHz: safely longer than Spin's WAITCNT setup latency,
+        ' while still far too short to limit the terminal's normal throughput.
+        waitcnt(cnt + 10_000)
 
     outputQueue[outputHead] := c
     outputHead := nextHead
@@ -221,7 +223,9 @@ PRI outputWorker | c
 PRI waitOutputIdle
     if outputCog
         repeat while (outputHead <> outputTail) OR outputBusy
-            waitcnt(cnt + 100)
+            ' Do not use a tiny WAITCNT delta here: if the target is already
+            ' past, Propeller WAITCNT waits for the 32-bit CNT wrap (~53.7 s).
+            waitcnt(cnt + 10_000)
 
 
 '' Original V29.14 terminal parser/render path.  In V29.16 it normally runs
@@ -278,14 +282,14 @@ PRI processSerial0(c)
             if pos => termChars
                 pos := termLastLine
                 text.delLine(0)
-            text.setCursorPos(pos) 
+            text.setCursorPos(pos)
             return
 
         ' Backspace
         if c == 8
             if pos > 0
                 pos -= 1
-            text.setCursorPos(pos) 
+            text.setCursorPos(pos)
             return
 
     ' State 1: ESC received, ready for escape sequence
@@ -336,7 +340,7 @@ PRI processSerial0(c)
 
         ' Escape sequence done, reset state machine
         state := 0
-        text.setCursorPos(pos) 
+        text.setCursorPos(pos)
         return
 
     ' State 2: ESC-[, start decoding first numeric arg
@@ -356,7 +360,7 @@ PRI processSerial0(c)
 
         ' End of input sequence
         ansi(c)
-        text.setCursorPos(pos) 
+        text.setCursorPos(pos)
         return
 
     ' State 3: ESC-[<digits>;, start decoding second numeric arg
@@ -376,7 +380,7 @@ PRI processSerial0(c)
 
         ' End of sequence
         ansi(c)
-        text.setCursorPos(pos) 
+        text.setCursorPos(pos)
         return
 
     ' State 4: ESC-[<digits>;<digits>;...  Ignore subsequent args
@@ -386,7 +390,7 @@ PRI processSerial0(c)
         if c == ";"
             return
         ansi(c)
-        text.setCursorPos(pos) 
+        text.setCursorPos(pos)
         return
 
     ' State 5: ESC-(, designate G0 character set
@@ -398,7 +402,7 @@ PRI processSerial0(c)
         else
             g0graphics := 0
         state := 0
-        text.setCursorPos(pos) 
+        text.setCursorPos(pos)
         return
     return
 

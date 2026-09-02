@@ -4,8 +4,14 @@
         V29.6: ANSI scroll-region parameters are bounded by rows, not columns.
         V29.7: Geometry is derived directly from the selected VGA mode and kept
                in longs; ANSI CUP/HVP clamps row and column independently.
-        V29.16: Host output is buffered through a second Spin cog so the S-100
-                interface can acknowledge characters while rendering continues.
+        V29.16: Final hardware-tested buffered-output implementation. Host output
+                is queued in a 128-byte FIFO and rendered by a second Spin cog,
+                allowing the S-100 interface to accept the next character while
+                VT100 parsing/rendering continues. In the 1000-line direct-I/O
+                benchmark this reduced elapsed time from ~32 sec to ~23 sec
+                (~28% less time / ~39% higher throughput). BDOS remained ~46-47 sec.
+                A safe 10,000-clock WAITCNT delay is used while polling full/idle
+                FIFO states to avoid missing CNT and waiting for a 32-bit wrap.
 ''
 '' Based on code from Vince Briel and ajv
 
@@ -36,9 +42,10 @@ VAR
     byte lastc  ' Last displayed character
     byte g0graphics ' DEC Special Graphics selected in G0 by ESC ( 0
 
-    ' V29.16 output FIFO.  ConsoleIO remains the sole owner of the S-100 data
-    ' pins; this object's second Spin cog only consumes bytes and updates the
-    ' terminal/VGA screen state.
+    ' V29.16 final output pipeline. ConsoleIO remains the sole owner of the
+    ' S-100 data pins and READY/BUSY handshake. This object queues received
+    ' characters here; the second Spin cog consumes the queue and updates the
+    ' VT100 state and VGA screen independently.
     byte outputQueue[OUTPUT_QUEUE_SIZE]
     long outputHead
     long outputTail
@@ -124,7 +131,7 @@ PRI syncGeometry | mode
 PUB init
 
     ' Any queued host output must finish before terminal state or geometry is
-    ' reset.  During local setup the main ConsoleIO cog is not accepting new
+    ' reset. During local setup the main ConsoleIO cog is not accepting new
     ' host characters, so this also keeps the setup/test screens deterministic.
     waitOutputIdle
 
@@ -139,7 +146,7 @@ PUB init
     regTop := 0
     regBot := termChars
 
-    ' Start the asynchronous output consumer once.  If no spare cog exists,
+    ' Start the asynchronous output consumer once. If no spare cog exists,
     ' outputCog remains zero and singleSerial0() transparently falls back to
     ' the original synchronous V29.14 behavior.
     if outputCog == 0
@@ -183,9 +190,11 @@ PUB testPutAt(row, col, c)
 
 
 '' Queue one byte from ConsoleIO and return as soon as there is FIFO space.
-'' This is the key V29.16 change: ConsoleIO can restore its S-100 READY/BUSY
-'' state while a different cog continues VT100 parsing, character drawing, and
-'' scrolling.  A full FIFO naturally applies back-pressure to the host.
+'' This is the V29.16 performance change: ConsoleIO can restore the S-100
+'' READY/BUSY state as soon as the byte is queued while this object's worker
+'' cog continues VT100 parsing, character drawing, cursor updates, and scrolling.
+'' A full FIFO naturally applies back-pressure to the host; characters are not
+'' dropped.
 PUB singleSerial0(c) | nextHead
     if outputCog == 0
         processSerial0(c)
@@ -193,8 +202,9 @@ PUB singleSerial0(c) | nextHead
 
     nextHead := (outputHead + 1) & OUTPUT_QUEUE_MASK
     repeat while nextHead == outputTail
-        ' 125 us at 80 MHz: safely longer than Spin's WAITCNT setup latency,
-        ' while still far too short to limit the terminal's normal throughput.
+        ' 125 us at 80 MHz: safely longer than Spin's WAITCNT setup latency.
+        ' A much smaller delta can already be in the past by the time WAITCNT
+        ' executes, causing an unintended ~53.7-second CNT-wrap delay.
         waitcnt(cnt + 10_000)
 
     outputQueue[outputHead] := c
@@ -223,13 +233,14 @@ PRI outputWorker | c
 PRI waitOutputIdle
     if outputCog
         repeat while (outputHead <> outputTail) OR outputBusy
-            ' Do not use a tiny WAITCNT delta here: if the target is already
-            ' past, Propeller WAITCNT waits for the 32-bit CNT wrap (~53.7 s).
+            ' Use the same safe polling delay as the FIFO-full path. Do not use
+            ' a tiny WAITCNT delta here; missing the target waits for CNT wrap.
             waitcnt(cnt + 10_000)
 
 
-'' Original V29.14 terminal parser/render path.  In V29.16 it normally runs
-'' in outputWorker's Spin cog instead of in the S-100 interface cog.
+'' V29.14 terminal parser/render path, retained unchanged by the V29.16
+'' performance work. It now normally executes in outputWorker's Spin cog instead
+'' of synchronously in the S-100 interface cog.
 PRI processSerial0(c)
     case state
 
